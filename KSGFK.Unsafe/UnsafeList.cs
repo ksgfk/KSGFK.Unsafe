@@ -108,6 +108,24 @@ namespace KSGFK.Unsafe
             _data = newPtr;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ReSize(int newCapacity, bool modifyCount = false)
+        {
+            if (newCapacity > _capacity)
+            {
+                _capacity = newCapacity;
+                var newPtr = Unsafe.Malloc((ulong) _capacity * (ulong) _size, _allocator);
+                Unsafe.CopyData(_data, 0, newPtr, 0, _count, _size);
+                Unsafe.Free(_data, _allocator);
+                _data = newPtr;
+            }
+
+            if (modifyCount)
+            {
+                _count = _capacity;
+            }
+        }
+
         public void Dispose()
         {
             Unsafe.Free(_data, _allocator);
