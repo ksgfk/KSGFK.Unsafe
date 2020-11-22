@@ -215,6 +215,9 @@ namespace KSGFK.Unsafe
             return (int) genericMethod.Invoke(null, null);
         }
 
+        /// <summary>
+        /// TODO:非递归
+        /// </summary>
         public static void QuickSort<T>(void* src, int left, int right, int size, IComparer<T> cmp) where T : struct
         {
             if (left < 0) throw new ArgumentOutOfRangeException();

@@ -178,7 +178,7 @@ namespace KSGFK.Unsafe
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ReSize()
+        private void ReSize()
         {
             if (_count <= _capacity) return;
             _capacity = Math.Max(_capacity + 1, (int) (_capacity * 1.5f));
@@ -188,6 +188,32 @@ namespace KSGFK.Unsafe
             _data = newPtr;
         }
 
+        public void ReSize(int newCapacity)
+        {
+            var oldCapacity = _capacity;
+            if (newCapacity > oldCapacity)
+            {
+                _capacity = newCapacity;
+                var newPtr = Unsafe.Malloc((ulong) _capacity * (ulong) _size, _allocator);
+                Unsafe.CopyData(_data, 0, newPtr, 0, _count, _size);
+                Unsafe.Free(_data, _allocator);
+                _data = newPtr;
+            }
+        }
+        
+        public void TrimExcess()
+        {
+            var newCapacity = _count;
+            if (_capacity > newCapacity)
+            {
+                _capacity = newCapacity;
+                var newPtr = Unsafe.Malloc((ulong) _capacity * (ulong) _size, _allocator);
+                Unsafe.CopyData(_data, 0, newPtr, 0, _count, _size);
+                Unsafe.Free(_data, _allocator);
+                _data = newPtr;
+            }
+        }
+        
         public void Sort() { Unsafe.QuickSort(_data, 0, _count - 1, _size, Comparer<int>.Default); }
 
         public void Sort(IComparer<T> cmp) { Unsafe.QuickSort(_data, 0, _count - 1, _size, cmp); }
