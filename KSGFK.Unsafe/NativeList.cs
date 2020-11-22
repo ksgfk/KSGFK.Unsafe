@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace KSGFK.Unsafe
 {
@@ -68,6 +69,12 @@ namespace KSGFK.Unsafe
             _data = Unsafe.Malloc((ulong) _size * (ulong) initCount, allocator);
             _capacity = initCount;
             _count = 0;
+        }
+
+        public NativeList(int initCount, int allocator, T initVal) : this(initCount, allocator)
+        {
+            _count = initCount;
+            ToSpan().Fill(initVal);
         }
 
         private NativeList(void* data, int size, int count, int capacity, int allocator)
@@ -200,7 +207,7 @@ namespace KSGFK.Unsafe
                 _data = newPtr;
             }
         }
-        
+
         public void TrimExcess()
         {
             var newCapacity = _count;
@@ -213,10 +220,12 @@ namespace KSGFK.Unsafe
                 _data = newPtr;
             }
         }
-        
+
         public void Sort() { Unsafe.QuickSort(_data, 0, _count - 1, _size, Comparer<int>.Default); }
 
         public void Sort(IComparer<T> cmp) { Unsafe.QuickSort(_data, 0, _count - 1, _size, cmp); }
+
+        public Span<T> ToSpan() { return MemoryMarshal.Cast<byte, T>(new Span<byte>((byte*) _data, _size * _count)); }
     }
 
     public struct NativeListEnumerator<T> : IEnumerator<T> where T : struct
