@@ -16,7 +16,7 @@ namespace KSGFK.Unsafe.Benchmark
         public void Setup()
         {
             _managedList = new List<Matrix4x4>(_cnt);
-            _nativeList = new NativeList<Matrix4x4>(_cnt, 1);
+            _nativeList = new NativeList<Matrix4x4>(1, _cnt);
             for (var i = 0; i < _cnt; i++)
             {
                 _nativeList.Add(Matrix4x4.Identity);

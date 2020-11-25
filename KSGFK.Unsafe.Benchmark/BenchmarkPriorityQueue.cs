@@ -30,7 +30,7 @@ namespace KSGFK.Unsafe.Benchmark
         {
             _cmp = new CompareVec4();
             _priority = new PriorityQueue<Vector4>(1000000, _cmp);
-            _native = new NativePriorityQueue<Vector4>(1000000, 0);
+            _native = new NativePriorityQueue<Vector4>(0, 1000000);
             _data = new Vector4[1000000];
             var rand = new Random();
             for (int i = 0; i < _data.Length; i++)

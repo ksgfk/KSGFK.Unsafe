@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
@@ -19,47 +20,50 @@ namespace KSGFK.Unsafe.Benchmark
             }
         }
 
-        private List<Vector4> _managedList;
-        private NativeList<Vector4> _nativeList;
-        private Vector4[] _data;
-        private int _cnt = 1000;
-        private CompareVec4 _cmp;
+        private int _cnt = (int) 1e5;
 
-        [GlobalSetup]
-        public void Setup()
+        [Benchmark]
+        [ArgumentsSource(nameof(ManagedData))]
+        public void ManagedList(List<int> list) { list.Sort(); }
+
+        public IEnumerable<List<int>> ManagedData()
         {
-            _cmp = new CompareVec4();
-            _data = new Vector4[_cnt];
-            _managedList = new List<Vector4>(_cnt);
-            _nativeList = new NativeList<Vector4>(_cnt, 1);
-            var rand = new Random();
-            for (var i = 0; i < _data.Length; i++)
+            var random = new Random();
+            var datas = Enumerable.Range(1, _cnt).ToList();
+            for (int i = datas.Count - 1; i > 0; i--)
             {
-                _data[i] = new Vector4(
-                    rand.Next(1000000),
-                    rand.Next(1000000),
-                    rand.Next(1000000),
-                    rand.Next(1000000));
+                var value = datas[i];
+                var randomIndex = random.Next(0, i);
+                datas[i] = datas[randomIndex];
+                datas[randomIndex] = value;
             }
 
-            foreach (var d in _data)
-            {
-                _managedList.Add(d);
-            }
-
-            foreach (var d in _data)
-            {
-                _nativeList.Add(d);
-            }
+            yield return datas;
         }
 
-        [Benchmark(OperationsPerInvoke = 1)]
-        public void ManagedList() { _managedList.Sort(_cmp); }
+        [Benchmark]
+        [ArgumentsSource(nameof(UnsafeData))]
+        public void NativeList(NativeList<int> list) { list.Sort(); }
 
-        [Benchmark(OperationsPerInvoke = 1)]
-        public void NativeList() { _nativeList.Sort(_cmp); }
+        public IEnumerable<NativeList<int>> UnsafeData()
+        {
+            var random = new Random();
+            var datas = Enumerable.Range(1, _cnt).ToArray();
+            for (int i = datas.Length - 1; i > 0; i--)
+            {
+                var value = datas[i];
+                var randomIndex = random.Next(0, i);
+                datas[i] = datas[randomIndex];
+                datas[randomIndex] = value;
+            }
 
-        [GlobalCleanup]
-        public void Cleanup() { _nativeList.Dispose(); }
+            var na = new NativeList<int>(1, _cnt);
+            foreach (var t in datas)
+            {
+                na.Add(t);
+            }
+
+            yield return na;
+        }
     }
 }

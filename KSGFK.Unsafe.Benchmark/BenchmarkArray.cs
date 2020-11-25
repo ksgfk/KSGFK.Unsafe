@@ -9,12 +9,13 @@ namespace KSGFK.Unsafe.Benchmark
     {
         private Matrix4x4[] _standardArr;
         private NativeArray<Matrix4x4> _nativeArray;
+        private int _cnt = 10_000_000;
 
         [GlobalSetup]
         public void Setup()
         {
-            _standardArr = new Matrix4x4[10000000];
-            _nativeArray = new NativeArray<Matrix4x4>(10000000, 0);
+            _standardArr = new Matrix4x4[_cnt];
+            _nativeArray = new NativeArray<Matrix4x4>(0, _cnt);
         }
 
         [Benchmark]

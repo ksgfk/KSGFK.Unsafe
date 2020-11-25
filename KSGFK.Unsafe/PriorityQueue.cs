@@ -39,5 +39,9 @@ namespace KSGFK.Collections
             if (_data.Count <= 0) throw new IndexOutOfRangeException();
             return _data[0];
         }
+
+        public void Clear() { _data.Clear(); }
+
+        public void TrimExcess() { _data.TrimExcess(); }
     }
 }

@@ -75,6 +75,21 @@ namespace KSGFK.Unsafe
 
         public static void AlignedFree(void* block, int allocator) { Allocators[allocator].Free(((void**) block)[-1]); }
 
+        public static void* AlignedReAlloc(void* block, ulong newSize, int align, int allocator)
+        {
+            var raw = ((void**) block)[-1];
+            var newPtr = Allocators[allocator].ReAlloc(raw, newSize);
+            if (newPtr == raw)
+            {
+                return block;
+            }
+
+            long offset = align - 1 + sizeof(void*);
+            var p2 = (void**) (((long) newPtr + offset) & ~(align - 1));
+            p2[-1] = newPtr;
+            return p2;
+        }
+
         public static void* Malloc(ulong size, int allocator)
         {
             var align = size % 16;
@@ -82,6 +97,12 @@ namespace KSGFK.Unsafe
         }
 
         public static void Free(void* block, int allocator) { AlignedFree(block, allocator); }
+
+        public static void* ReAlloc(void* block, ulong newSize, int allocator)
+        {
+            var align = newSize % 16;
+            return AlignedReAlloc(block, newSize, align == 0 ? 16 : (int) align, allocator);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref T GetArrayItem<T>(void* source, int index) where T : unmanaged
@@ -114,27 +135,12 @@ namespace KSGFK.Unsafe
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int GetItemIndex<T>(void* arr, int length, in T item) where T : unmanaged
-        {
-            var cmp = EqualityComparer<T>.Default;
-            for (var i = 0; i < length; i++)
-            {
-                if (cmp.Equals(item, GetArrayItem<T>(arr, i)))
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int GetItemIndex<T>(void* arr, int length, in T item, IEqualityComparer<T> cmp)
-            where T : unmanaged
+        public static int GetItemIndex<T>(void* arr, int size, int length, in T item, IEqualityComparer<T> cmp)
+            where T : struct
         {
             for (var i = 0; i < length; i++)
             {
-                if (cmp.Equals(item, GetArrayItem<T>(arr, i)))
+                if (cmp.Equals(item, GetArrayItem<T>(arr, size, i)))
                 {
                     return i;
                 }
@@ -184,7 +190,7 @@ namespace KSGFK.Unsafe
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Clear(void* src, int len) { new Span<byte>(src, len).Fill(0); }
+        public static void Clear(void* src, int count, int size) { new Span<byte>(src, count * size).Fill(0); }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Clear<T>(T* src, int len) where T : unmanaged { new Span<T>(src, len).Fill(default); }
@@ -215,34 +221,53 @@ namespace KSGFK.Unsafe
             return (int) genericMethod.Invoke(null, null);
         }
 
-        /// <summary>
-        /// TODO:非递归
-        /// </summary>
+        public static void QuickSort<T>(void* src, int count, int size, IComparer<T> cmp) where T : struct
+        {
+            using var stack = new NativeStack<int>(0, 256);
+            stack.Push(0);
+            stack.Push(count - 1);
+            var biSrc = (byte*) src;
+
+            while (stack.Count > 0)
+            {
+                var right = stack.Peek();
+                stack.Pop();
+                var left = stack.Peek();
+                stack.Pop();
+                var mid = GetArrayItem<T>(src, size, (left + right) / 2);
+                int i = left, j = right;
+                do
+                {
+                    while (cmp.Compare(GetArrayItem<T>(src, size, i), mid) < 0) i++;
+                    while (cmp.Compare(GetArrayItem<T>(src, size, j), mid) > 0) j--;
+                    if (i <= j)
+                    {
+                        Swap(biSrc + i * size, biSrc + j * size, size);
+                        i++;
+                        j--;
+                    }
+                } while (i <= j);
+
+                if (left < j)
+                {
+                    stack.Push(left);
+                    stack.Push(j);
+                }
+
+                if (i < right)
+                {
+                    stack.Push(i);
+                    stack.Push(right);
+                }
+            }
+        }
+
         public static void QuickSort<T>(void* src, int left, int right, int size, IComparer<T> cmp) where T : struct
         {
             if (left < 0) throw new ArgumentOutOfRangeException();
             if (right < 0) throw new ArgumentOutOfRangeException();
             if (right - left < 0) throw new ArgumentOutOfRangeException();
             var biSrc = (byte*) src;
-
-            //可能是Swap的原因,这个方法慢了很多,但是容易理解(
-            // var mid = GetArrayItem<T>(src, size, (left + right) / 2);
-            // int i = left, j = right;
-            // do
-            // {
-            //     while (cmp.Compare(GetArrayItem<T>(src, size, i), mid) < 0) i++;
-            //     while (cmp.Compare(GetArrayItem<T>(src, size, j), mid) > 0) j--;
-            //     if (i <= j)
-            //     {
-            //         Swap(biSrc + i * size, biSrc + j * size, size);
-            //         i++;
-            //         j--;
-            //     }
-            // } while (i <= j);
-            //
-            // if (left < j) QuickSort(src, left, j, size, cmp);
-            // if (i < right) QuickSort(src, i, right, size, cmp);
-
             //https://github.com/MaxwellGengYF/Unity-MPipeline
             int i = left, j = right;
             var temp = GetArrayItem<T>(src, size, left);

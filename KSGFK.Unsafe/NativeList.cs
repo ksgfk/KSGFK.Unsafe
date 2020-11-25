@@ -61,17 +61,19 @@ namespace KSGFK.Unsafe
             }
         }
 
-        public NativeList(int initCount, int allocator)
+        public NativeList(int size, int allocator, int initCount = 8)
         {
             if (initCount < 0) throw new IndexOutOfRangeException();
-            _size = Unsafe.SizeOf<T>();
+            _size = size;
             _allocator = allocator;
             _data = Unsafe.Malloc((ulong) _size * (ulong) initCount, allocator);
             _capacity = initCount;
             _count = 0;
         }
 
-        public NativeList(int initCount, int allocator, T initVal) : this(initCount, allocator)
+        public NativeList(int allocator, int initCount = 8) : this(Unsafe.SizeOf<T>(), allocator, initCount) { }
+
+        public NativeList(int initCount, T initVal, int allocator) : this(allocator, initCount)
         {
             _count = initCount;
             ToSpan().Fill(initVal);
@@ -98,7 +100,7 @@ namespace KSGFK.Unsafe
             }
         }
 
-        public NativeListEnumerator<T> GetEnumerator() { return new NativeListEnumerator<T>(ref this); }
+        public Enumerator GetEnumerator() { return new Enumerator(ref this); }
 
         IEnumerator<T> IEnumerable<T>.GetEnumerator() { return GetEnumerator(); }
 
@@ -210,10 +212,10 @@ namespace KSGFK.Unsafe
 
         public void TrimExcess()
         {
-            var newCapacity = _count;
-            if (_capacity > newCapacity)
+            var newCapacity = (int) (_capacity * 0.9f);
+            if (_count < newCapacity)
             {
-                _capacity = newCapacity;
+                _capacity = _count;
                 var newPtr = Unsafe.Malloc((ulong) _capacity * (ulong) _size, _allocator);
                 Unsafe.CopyData(_data, 0, newPtr, 0, _count, _size);
                 Unsafe.Free(_data, _allocator);
@@ -221,34 +223,32 @@ namespace KSGFK.Unsafe
             }
         }
 
-        public void Sort() { Unsafe.QuickSort(_data, 0, _count - 1, _size, Comparer<int>.Default); }
+        public void Sort() { Unsafe.QuickSort(_data, _count, _size, Comparer<T>.Default); }
 
-        public void Sort(IComparer<T> cmp) { Unsafe.QuickSort(_data, 0, _count - 1, _size, cmp); }
+        public void Sort(IComparer<T> cmp) { Unsafe.QuickSort(_data, _count, _size, cmp); }
 
         public Span<T> ToSpan() { return MemoryMarshal.Cast<byte, T>(new Span<byte>((byte*) _data, _size * _count)); }
-    }
 
-    public struct NativeListEnumerator<T> : IEnumerator<T> where T : struct
-    {
-        private readonly NativeList<T> _arr;
-        private int _i;
-
-        public NativeListEnumerator(ref NativeList<T> arr)
+        public struct Enumerator : IEnumerator<T>
         {
-            _arr = arr;
-            _i = -1;
+            private readonly NativeList<T> _arr;
+            private int _i;
+
+            public ref T Current => ref _arr[_i];
+            T IEnumerator<T>.Current => _arr[_i];
+            object IEnumerator.Current => Current;
+
+            public Enumerator(ref NativeList<T> arr)
+            {
+                _arr = arr;
+                _i = -1;
+            }
+
+            public bool MoveNext() { return ++_i < _arr.Count; }
+
+            public void Reset() { _i = -1; }
+
+            void IDisposable.Dispose() { }
         }
-
-        public bool MoveNext() { return ++_i < _arr.Count; }
-
-        public void Reset() { _i = -1; }
-
-        public ref T Current => ref _arr[_i];
-
-        T IEnumerator<T>.Current => _arr[_i];
-
-        object IEnumerator.Current => Current;
-
-        public void Dispose() { }
     }
 }

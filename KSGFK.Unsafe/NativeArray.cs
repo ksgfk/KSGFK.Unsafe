@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace KSGFK.Unsafe
 {
@@ -53,14 +54,16 @@ namespace KSGFK.Unsafe
             }
         }
 
-        public NativeArray(int count, int allocator)
+        public NativeArray(int size, int allocator, int count = 8)
         {
             if (count <= 0) throw new ArgumentException();
-            _size = Unsafe.SizeOf<T>();
+            _size = size;
             _allocator = allocator;
             _data = Unsafe.Malloc((ulong) _size * (ulong) count, allocator);
             _count = count;
         }
+
+        public NativeArray(int allocator, int count = 8) : this(Unsafe.SizeOf<T>(), allocator, count) { }
 
         private NativeArray(void* data, int size, int count, int allocator)
         {
@@ -81,7 +84,7 @@ namespace KSGFK.Unsafe
             }
         }
 
-        public NativeArrayEnumerator<T> GetEnumerator() { return new NativeArrayEnumerator<T>(ref this); }
+        public Enumerator GetEnumerator() { return new Enumerator(ref this); }
 
         IEnumerator<T> IEnumerable<T>.GetEnumerator() { return GetEnumerator(); }
 
@@ -89,7 +92,7 @@ namespace KSGFK.Unsafe
 
         void ICollection<T>.Add(T item) { throw new NotSupportedException(); }
 
-        public void Clear() { Unsafe.Clear(_data, _count); }
+        public void Clear() { Unsafe.Clear(_data, _count, _size); }
 
         public bool Contains(T item) { return IndexOf(item) != -1; }
 
@@ -98,6 +101,11 @@ namespace KSGFK.Unsafe
         bool ICollection<T>.Remove(T item) { throw new NotSupportedException(); }
 
         public int IndexOf(T item) { return Unsafe.GetItemIndex(_data, _size, _count, in item); }
+
+        public int IndexOf(T item, IEqualityComparer<T> cmp)
+        {
+            return Unsafe.GetItemIndex(_data, _size, _count, in item, cmp);
+        }
 
         void IList<T>.Insert(int index, T item) { throw new NotSupportedException(); }
 
@@ -111,32 +119,34 @@ namespace KSGFK.Unsafe
             Dispose();
         }
 
-        public void Sort() { Unsafe.QuickSort(_data, 0, _count - 1, _size, Comparer<int>.Default); }
+        public void Sort() { Unsafe.QuickSort(_data, _count, _size, Comparer<T>.Default); }
 
-        public void Sort(IComparer<T> cmp) { Unsafe.QuickSort(_data, 0, _count - 1, _size, cmp); }
-    }
+        public void Sort(IComparer<T> cmp) { Unsafe.QuickSort(_data, _count, _size, cmp); }
 
-    public struct NativeArrayEnumerator<T> : IEnumerator<T> where T : struct
-    {
-        private readonly NativeArray<T> _arr;
-        private int _i;
+        public Span<T> ToSpan() { return MemoryMarshal.Cast<byte, T>(new Span<byte>((byte*) _data, _size * _count)); }
 
-        public NativeArrayEnumerator(ref NativeArray<T> arr)
+        public struct Enumerator : IEnumerator<T>
         {
-            _arr = arr;
-            _i = -1;
+            private readonly NativeArray<T> _arr;
+            private int _i;
+
+            public Enumerator(ref NativeArray<T> arr)
+            {
+                _arr = arr;
+                _i = -1;
+            }
+
+            public bool MoveNext() { return ++_i < _arr.Count; }
+
+            public void Reset() { _i = -1; }
+
+            public ref T Current => ref _arr[_i];
+
+            T IEnumerator<T>.Current => _arr[_i];
+
+            object IEnumerator.Current => Current;
+
+            void IDisposable.Dispose() { }
         }
-
-        public bool MoveNext() { return ++_i < _arr.Count; }
-
-        public void Reset() { _i = -1; }
-
-        public ref T Current => ref _arr[_i];
-
-        T IEnumerator<T>.Current => _arr[_i];
-
-        object IEnumerator.Current => Current;
-
-        public void Dispose() { }
     }
 }

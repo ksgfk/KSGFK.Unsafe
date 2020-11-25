@@ -31,7 +31,6 @@ namespace KSGFK.Unsafe
         }
 
         public bool IsDisposed => _data == null;
-        public bool IsReadOnly => false;
 
         public bool IsEmpty
         {
@@ -39,14 +38,18 @@ namespace KSGFK.Unsafe
             get => _count <= 0;
         }
 
-        public NativePriorityQueue(int initCount, int allocator)
+        public NativePriorityQueue(int size, int allocator, int initCount = 6)
         {
             if (initCount < 0) throw new IndexOutOfRangeException();
-            _size = Unsafe.SizeOf<T>();
+            _size = size;
             _allocator = allocator;
             _data = Unsafe.Malloc((ulong) _size * (ulong) initCount, allocator);
             _capacity = initCount;
             _count = 0;
+        }
+
+        public NativePriorityQueue(int allocator, int initCount = 6) : this(Unsafe.SizeOf<T>(), allocator, initCount)
+        {
         }
 
         public void Dispose()
@@ -98,7 +101,7 @@ namespace KSGFK.Unsafe
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ReSize()
+        private void ReSize()
         {
             if (_count <= _capacity) return;
             _capacity = Math.Max(_capacity + 1, (int) (_capacity * 1.5f));
@@ -106,6 +109,21 @@ namespace KSGFK.Unsafe
             Unsafe.CopyData(_data, 0, newPtr, 0, _count, _size);
             Unsafe.Free(_data, _allocator);
             _data = newPtr;
+        }
+
+        public void Clear() { _count = 0; }
+        
+        public void TrimExcess()
+        {
+            var newCapacity = (int) (_capacity * 0.9f);
+            if (_count < newCapacity)
+            {
+                _capacity = _count;
+                var newPtr = Unsafe.Malloc((ulong) _capacity * (ulong) _size, _allocator);
+                Unsafe.CopyData(_data, 0, newPtr, 0, _count, _size);
+                Unsafe.Free(_data, _allocator);
+                _data = newPtr;
+            }
         }
     }
 }
