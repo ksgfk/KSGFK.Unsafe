@@ -6,10 +6,11 @@ namespace KSGFK.Unsafe.Benchmark
     {
         static void Main(string[] args)
         {
-            BenchmarkRunner.Run<BenchmarkArray>();
-            BenchmarkRunner.Run<BenchmarkPriorityQueue>();
-            BenchmarkRunner.Run<BenchmarkList>();
-            BenchmarkRunner.Run<BenchmarkQuickSort>();
+            // BenchmarkRunner.Run<BenchmarkArray>();
+            // BenchmarkRunner.Run<BenchmarkPriorityQueue>();
+            // BenchmarkRunner.Run<BenchmarkList>();
+            // BenchmarkRunner.Run<BenchmarkQuickSort>();
+            BenchmarkRunner.Run<BenchmarkQuadTree>();
         }
     }
 }
