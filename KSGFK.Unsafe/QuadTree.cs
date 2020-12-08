@@ -100,40 +100,34 @@ namespace KSGFK.Unsafe
 
         private void Add(Aabb2D rect, T item, int node)
         {
-            var stack = new Stack<(Aabb2D, T, int)>(_maxDepth * 4);
-            stack.Push((rect, item, node));
-            while (stack.Count > 0)
+            if (_nodes[node].HaveSubNode)
             {
-                var (rectT, itemT, nodeT) = stack.Pop();
-                if (_nodes[nodeT].HaveSubNode)
+                var (rt, lt, ld, rd) = GetInsertNode(rect, node);
+                if (rt) Add(rect, item, _nodes[node].One);
+                if (lt) Add(rect, item, _nodes[node].Two);
+                if (ld) Add(rect, item, _nodes[node].Three);
+                if (rd) Add(rect, item, _nodes[node].Four);
+                return;
+            }
+
+            _nodes[node].Data.Add((rect, item));
+            if (_nodes[node].Data.Count > _maxItem && _nodes[node].Depth <= _maxDepth)
+            {
+                if (!_nodes[node].HaveSubNode)
                 {
-                    var (rt, lt, ld, rd) = GetInsertNode(rectT, nodeT);
-                    if (rt) stack.Push((rectT, itemT, _nodes[nodeT].One));
-                    if (lt) stack.Push((rectT, itemT, _nodes[nodeT].Two));
-                    if (ld) stack.Push((rectT, itemT, _nodes[nodeT].Three));
-                    if (rd) stack.Push((rectT, itemT, _nodes[nodeT].Four));
-                    continue;
+                    Split(node);
                 }
 
-                _nodes[nodeT].Data.Add((rectT, itemT));
-                if (_nodes[nodeT].Data.Count > _maxItem && _nodes[nodeT].Depth <= _maxDepth)
+                foreach (var (r, i) in _nodes[node].Data)
                 {
-                    if (!_nodes[nodeT].HaveSubNode)
-                    {
-                        Split(nodeT);
-                    }
-
-                    foreach (var (r, i) in _nodes[nodeT].Data)
-                    {
-                        var (rt, lt, ld, rd) = GetInsertNode(r, nodeT);
-                        if (rt) stack.Push((r, i, _nodes[nodeT].One));
-                        if (lt) stack.Push((r, i, _nodes[nodeT].Two));
-                        if (ld) stack.Push((r, i, _nodes[nodeT].Three));
-                        if (rd) stack.Push((r, i, _nodes[nodeT].Four));
-                    }
-
-                    _nodes[nodeT].Data.Clear();
+                    var (rt, lt, ld, rd) = GetInsertNode(r, node);
+                    if (rt) Add(r, i, _nodes[node].One);
+                    if (lt) Add(r, i, _nodes[node].Two);
+                    if (ld) Add(r, i, _nodes[node].Three);
+                    if (rd) Add(r, i, _nodes[node].Four);
                 }
+
+                _nodes[node].Data.Clear();
             }
         }
 
@@ -152,26 +146,22 @@ namespace KSGFK.Unsafe
             result.AddRange(set);
         }
 
+        public void Retrieve(Aabb2D rect, HashSet<T> result) { Retrieve(rect, 0, result); }
+
         private void Retrieve(Aabb2D rect, int node, HashSet<T> set)
         {
-            var stack = new Stack<int>(_maxDepth * 4);
-            stack.Push(node);
-            while (stack.Count > 0)
+            foreach (var (_, item) in _nodes[node].Data)
             {
-                var nodeT = stack.Pop();
-                foreach (var (_, item) in _nodes[nodeT].Data)
-                {
-                    set.Add(item);
-                }
+                set.Add(item);
+            }
 
-                if (_nodes[nodeT].HaveSubNode)
-                {
-                    var (rt, lt, ld, rd) = GetInsertNode(rect, nodeT);
-                    if (rt) stack.Push(_nodes[nodeT].One);
-                    if (lt) stack.Push(_nodes[nodeT].Two);
-                    if (ld) stack.Push(_nodes[nodeT].Three);
-                    if (rd) stack.Push(_nodes[nodeT].Four);
-                }
+            if (_nodes[node].HaveSubNode)
+            {
+                var (rt, lt, ld, rd) = GetInsertNode(rect, node);
+                if (rt) Retrieve(rect, _nodes[node].One, set);
+                if (lt) Retrieve(rect, _nodes[node].Two, set);
+                if (ld) Retrieve(rect, _nodes[node].Three, set);
+                if (rd) Retrieve(rect, _nodes[node].Four, set);
             }
         }
 
