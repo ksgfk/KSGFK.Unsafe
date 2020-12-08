@@ -1,156 +1,208 @@
-using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace KSGFK.Unsafe
 {
+    /// <summary>
+    /// 参考https://github.com/timohausmann/quadtree-js
+    /// 之前自己写的，速度很玄学，这个稳定些
+    /// 不过这哥们的象限和我学的不太一样...他的是
+    ///  3 | 2
+    /// -------
+    ///  4 | 1
+    /// 我的是
+    ///  2 | 1
+    /// -------
+    ///  3 | 4
+    /// emm.......
+    /// </summary>
     public class QuadTree<T>
     {
-        private sealed class Node
+        private class Node
         {
-            private List<AABB2D> _aabbs;
-            private List<T> _data;
-            public Node RightTop;
-            public Node LeftTop;
-            public Node LeftDown;
-            public Node RightDown;
-            public readonly AABB2D Size;
-            public List<T> Data => _data;
-            public List<AABB2D> AABB => _aabbs;
-
-            public Node(AABB2D size)
-            {
-                Size = size;
-                _aabbs = null;
-            }
-
-            public void Add(AABB2D aabb, T data)
-            {
-                (_aabbs ??= new List<AABB2D>()).Add(aabb);
-                (_data ??= new List<T>()).Add(data);
-            }
-
-            public void Clean()
-            {
-                _aabbs.Clear();
-                _data.Clear();
-            }
+            public List<(Aabb2D, T)> Data = new List<(Aabb2D, T)>(16);
+            public int Four;
+            public int Three;
+            public int Two;
+            public int One;
+            public int Depth;
+            public Aabb2D Bound;
+            public bool HaveSubNode;
         }
 
-        private Node _root;
-        private readonly AABB2D _worldSize;
+        private readonly List<Node> _nodes;
+        private readonly Queue<int> _usable;
+        private readonly int _maxItem;
         private readonly int _maxDepth;
 
-        public QuadTree(AABB2D worldSize, int maxDepth)
+        public QuadTree(Aabb2D bound, int maxItem = 16, int maxDepth = 4)
         {
-            _worldSize = worldSize;
+            _nodes = new List<Node>();
+            _usable = new Queue<int>();
+            _maxItem = maxItem;
             _maxDepth = maxDepth;
-            _root = null;
+            _nodes.Add(new Node {Bound = bound, Depth = 1});
         }
 
-        public void Add(AABB2D aabb, T data)
+        private int GetEmptyNode(Aabb2D rect, int depth)
         {
-            _root ??= new Node(_worldSize);
-            Add(aabb, data, _root, 1);
+            int idx;
+            if (_usable.Count == 0)
+            {
+                idx = _nodes.Count;
+                _nodes.Add(new Node());
+            }
+            else
+            {
+                idx = _usable.Dequeue();
+            }
+
+            _nodes[idx].Bound = rect;
+            _nodes[idx].Depth = depth;
+            return idx;
         }
 
-        public void CollisionTest(AABB2D aabb, List<T> data)
+        private void Split(int idx)
         {
-            if (_root == null) return;
-            CollisionTest(aabb, data, _root, 1);
+            var nextDepth = _nodes[idx].Depth + 1;
+            var bound = _nodes[idx].Bound;
+            var wm = bound.Width / 2;
+            var hm = bound.Height / 2;
+            var x = bound.Left;
+            var y = bound.Down;
+            var z = bound.Right;
+            var w = bound.Up;
+            _nodes[idx].Four = GetEmptyNode(new Aabb2D(x + wm, y, z, w - hm), nextDepth);
+            _nodes[idx].Three = GetEmptyNode(new Aabb2D(x, y, z - wm, w - hm), nextDepth);
+            _nodes[idx].Two = GetEmptyNode(new Aabb2D(x, y + hm, z - wm, w), nextDepth);
+            _nodes[idx].One = GetEmptyNode(new Aabb2D(x + wm, y + hm, z, w), nextDepth);
+            _nodes[idx].HaveSubNode = true;
         }
 
-        private void Add(AABB2D aabb, T data, Node nodeT, int depthT)
+        private (bool, bool, bool, bool) GetInsertNode(Aabb2D pRect, int idx)
         {
-            var stack = new Stack<(Node, int)>(Math.Max((int) Math.Pow(2, _maxDepth), 100));
-            stack.Push((nodeT, depthT));
+            var bound = _nodes[idx].Bound;
+            var wm = bound.Width / 2;
+            var hm = bound.Height / 2;
+            var verticalMidpoint = bound.Left + wm;
+            var horizontalMidpoint = bound.Down + hm;
+            var startIsNorth = pRect.Down < horizontalMidpoint;
+            var startIsWest = pRect.Left < verticalMidpoint;
+            var endIsEast = pRect.Right > verticalMidpoint;
+            var endIsSouth = pRect.Up > horizontalMidpoint;
+            return (endIsEast && endIsSouth,
+                startIsWest && endIsSouth,
+                startIsWest && startIsNorth,
+                startIsNorth && endIsEast);
+        }
+
+        public void Add(Aabb2D rect, T item) { Add(rect, item, 0); }
+
+        private void Add(Aabb2D rect, T item, int node)
+        {
+            var stack = new Stack<(Aabb2D, T, int)>(_maxDepth * 4);
+            stack.Push((rect, item, node));
             while (stack.Count > 0)
             {
-                var (node, depth) = stack.Pop();
-                var size = node.Size;
-                if (size.IsCross(aabb))
+                var (rectT, itemT, nodeT) = stack.Pop();
+                if (_nodes[nodeT].HaveSubNode)
                 {
-                    if (!size.Contains(aabb) || depth >= _maxDepth)
+                    var (rt, lt, ld, rd) = GetInsertNode(rectT, nodeT);
+                    if (rt) stack.Push((rectT, itemT, _nodes[nodeT].One));
+                    if (lt) stack.Push((rectT, itemT, _nodes[nodeT].Two));
+                    if (ld) stack.Push((rectT, itemT, _nodes[nodeT].Three));
+                    if (rd) stack.Push((rectT, itemT, _nodes[nodeT].Four));
+                    continue;
+                }
+
+                _nodes[nodeT].Data.Add((rectT, itemT));
+                if (_nodes[nodeT].Data.Count > _maxItem && _nodes[nodeT].Depth <= _maxDepth)
+                {
+                    if (!_nodes[nodeT].HaveSubNode)
                     {
-                        node.Add(aabb, data);
+                        Split(nodeT);
                     }
 
-                    if (depth >= _maxDepth)
+                    foreach (var (r, i) in _nodes[nodeT].Data)
                     {
-                        // return;
-                        continue;
+                        var (rt, lt, ld, rd) = GetInsertNode(r, nodeT);
+                        if (rt) stack.Push((r, i, _nodes[nodeT].One));
+                        if (lt) stack.Push((r, i, _nodes[nodeT].Two));
+                        if (ld) stack.Push((r, i, _nodes[nodeT].Three));
+                        if (rd) stack.Push((r, i, _nodes[nodeT].Four));
                     }
 
-                    var w = size.Width / 2f;
-                    var h = size.Height / 2f;
-                    node.RightTop ??= new Node(new AABB2D(size.Left + w, size.Top, size.Right, size.Down + h));
-                    stack.Push((node.RightTop, depth + 1));
-                    // Add(aabb, data, node.RightTop, depth + 1);
-                    node.LeftTop ??= new Node(new AABB2D(size.Left, size.Top, size.Right - w, size.Down + h));
-                    stack.Push((node.LeftTop, depth + 1));
-                    // Add(aabb, data, node.LeftTop, depth + 1);
-                    node.LeftDown ??= new Node(new AABB2D(size.Left, size.Top - h, size.Right - w, size.Down));
-                    stack.Push((node.LeftDown, depth + 1));
-                    // Add(aabb, data, node.LeftDown, depth + 1);
-                    node.RightDown ??= new Node(new AABB2D(size.Left + w, size.Top - h, size.Right, size.Down));
-                    stack.Push((node.RightDown, depth + 1));
-                    // Add(aabb, data, node.RightDown, depth + 1);
+                    _nodes[nodeT].Data.Clear();
                 }
             }
         }
 
-        private void CollisionTest(AABB2D aabb, List<T> data, Node nodeT, int depthT)
+        public T[] Retrieve(Aabb2D rect)
         {
-            var stack = new Stack<(Node, int)>(Math.Max((int) Math.Pow(2, _maxDepth), 100));
             var set = new HashSet<T>();
-            stack.Push((nodeT, depthT));
-            while (stack.Count > 0)
-            {
-                var (node, depth) = stack.Pop();
-                var size = node.Size;
-                if (size.IsCross(aabb))
-                {
-                    if ((!size.Contains(aabb) || depth >= _maxDepth) && node.Data != null)
-                    {
-                        for (var i = 0; i < node.AABB.Count; i++)
-                        {
-                            if (node.AABB[i].IsCross(aabb))
-                            {
-                                set.Add(node.Data[i]);
-                            }
-                        }
-                    }
-
-                    if (depth >= _maxDepth)
-                    {
-                        // return;
-                        continue;
-                    }
-
-                    // if (node.RightTop != null) CollisionTest(aabb, data, node.RightTop, depth + 1);
-                    if (node.RightTop != null) stack.Push((node.RightTop, depth + 1));
-                    // if (node.LeftTop != null) CollisionTest(aabb, data, node.LeftTop, depth + 1);
-                    if (node.LeftTop != null) stack.Push((node.LeftTop, depth + 1));
-                    // if (node.LeftDown != null) CollisionTest(aabb, data, node.LeftDown, depth + 1);
-                    if (node.LeftDown != null) stack.Push((node.LeftDown, depth + 1));
-                    // if (node.RightDown != null) CollisionTest(aabb, data, node.RightDown, depth + 1);
-                    if (node.RightDown != null) stack.Push((node.RightDown, depth + 1));
-                }
-            }
-
-            data.Clear();
-            data.AddRange(set);
+            Retrieve(rect, 0, set);
+            return set.ToArray();
         }
 
-        public void Clear() { Clear(_root); }
-
-        private void Clear(Node node)
+        public void Retrieve(Aabb2D rect, List<T> result)
         {
-            if (node == null) return;
-            node.Clean();
-            Clear(node.LeftDown);
-            Clear(node.LeftTop);
-            Clear(node.RightDown);
-            Clear(node.RightTop);
+            var set = new HashSet<T>();
+            Retrieve(rect, 0, set);
+            result.Clear();
+            result.AddRange(set);
+        }
+
+        private void Retrieve(Aabb2D rect, int node, HashSet<T> set)
+        {
+            var stack = new Stack<int>(_maxDepth * 4);
+            stack.Push(node);
+            while (stack.Count > 0)
+            {
+                var nodeT = stack.Pop();
+                foreach (var (_, item) in _nodes[nodeT].Data)
+                {
+                    set.Add(item);
+                }
+
+                if (_nodes[nodeT].HaveSubNode)
+                {
+                    var (rt, lt, ld, rd) = GetInsertNode(rect, nodeT);
+                    if (rt) stack.Push(_nodes[nodeT].One);
+                    if (lt) stack.Push(_nodes[nodeT].Two);
+                    if (ld) stack.Push(_nodes[nodeT].Three);
+                    if (rd) stack.Push(_nodes[nodeT].Four);
+                }
+            }
+        }
+
+        public void Clear()
+        {
+            foreach (var node in _nodes)
+            {
+                node.Bound = default;
+                node.Data.Clear();
+                node.Depth = 0;
+                node.Two = 0;
+                node.Three = 0;
+                node.Four = 0;
+                node.One = 0;
+                node.HaveSubNode = false;
+            }
+
+            for (var i = 1; i < _nodes.Count; i++)
+            {
+                _usable.Enqueue(i);
+            }
+        }
+
+        public void TrimExcess()
+        {
+            var bound = _nodes[0].Bound;
+            _nodes.Clear();
+            _nodes.TrimExcess();
+            _usable.Clear();
+            _usable.TrimExcess();
+            _nodes.Add(new Node {Bound = bound, Depth = 1});
         }
     }
 }
