@@ -10,7 +10,8 @@ namespace KSGFK.Unsafe.Benchmark
             // BenchmarkRunner.Run<BenchmarkPriorityQueue>();
             // BenchmarkRunner.Run<BenchmarkList>();
             // BenchmarkRunner.Run<BenchmarkQuickSort>();
-            BenchmarkRunner.Run<BenchmarkQuadTree>();
+            // BenchmarkRunner.Run<BenchmarkQuadTree>();
+            BenchmarkRunner.Run<BenchmarkAvlSet>();
         }
     }
 }
