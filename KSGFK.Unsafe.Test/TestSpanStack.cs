@@ -1,17 +1,16 @@
+﻿using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using KSGFK.Unsafe;
-using NUnit.Framework;
 
-namespace Test
+namespace KSGFK.Unsafe.Test
 {
-    public class TestNativeStack
+    public class TestSpanStack
     {
         [Test]
         public unsafe void Test()
         {
-            const int cnt = 1000;
-            using var stack = new NativeStack<int>(0);
+            const int cnt = 100;
+            var stack = new SpanStack<int>(stackalloc int[cnt]);
             var managed = new Stack<int>(cnt);
 
             var arr = new int[cnt];
@@ -39,6 +38,14 @@ namespace Test
             se.Dispose();
             me.Dispose();
 
+            var toArr = stack.ToArray();
+            var meArr = managed.ToArray();
+            Assert.AreEqual(toArr.Length, meArr.Length);
+            for (int i = 0; i < toArr.Length; i++)
+            {
+                Assert.AreEqual(toArr[i], meArr[i]);
+            }
+
             for (int i = 0; i < cnt; i++)
             {
                 Assert.True(managed.Count == stack.Count);
@@ -47,16 +54,9 @@ namespace Test
                 Assert.True(l == r);
                 stack.Pop();
             }
-            
+
             stack.Clear();
-            stack.TrimExcess();
-
-            Assert.True(!stack.IsDisposed);
-
-            stack.Dispose();
-
-            Assert.True(stack.Ptr == null);
-            Assert.True(stack.IsDisposed);
+            Assert.True(stack.Count == 0);
         }
     }
 }

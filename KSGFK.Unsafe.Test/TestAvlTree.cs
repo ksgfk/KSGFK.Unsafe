@@ -2,124 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using KSGFK.Unsafe;
+using System.Text;
 using NUnit.Framework;
 
-namespace Test
+namespace KSGFK.Unsafe.Test
 {
-    public class TestAvlTree
+    public partial class TestAvlTree
     {
-        // https://www.luogu.com.cn/problem/P3369
-        // 操作4有一个点莫名其妙的错误
-        // Rank哪里写炸了（（
-        // public void Test()
-        // {
-        //     var fs = new FileStream(@"C:\Users\ksgfk\Desktop\out.txt", FileMode.Create, FileAccess.Write);
-        //     var sw = new StreamWriter(fs);
-        //     Console.SetOut(sw);
-        //     var tree = new AvlDictionary<int, int>();
-        //     var n = int.Parse(Console.ReadLine());
-        //     var line = 1;
-        //     for (var i = 0; i < n; i++)
-        //     {
-        //         var r = Console.ReadLine();
-        //         if (line == 1390)
-        //         {
-        //         }
-        //
-        //         switch (r[0])
-        //         {
-        //             case '1':
-        //                 var va = int.Parse(r.Substring(2));
-        //                 var nod = tree.FindNode(va);
-        //                 if (nod.HasValue)
-        //                 {
-        //                     tree.SetValue(nod, nod.Value.Value + 1);
-        //                 }
-        //                 else
-        //                 {
-        //                     tree.Add(va, 1);
-        //                 }
-        //
-        //                 break;
-        //             case '2':
-        //                 var cnt = tree.FindNode(int.Parse(r.Substring(2)));
-        //                 if (cnt.Value.Value == 1)
-        //                 {
-        //                     tree.Remove(cnt);
-        //                 }
-        //                 else
-        //                 {
-        //                     tree.SetValue(cnt, cnt.Value.Value - 1);
-        //                 }
-        //
-        //                 break;
-        //             case '3':
-        //                 var v = int.Parse(r.Substring(2));
-        //                 var rnk = 1;
-        //                 foreach (var (p, c) in tree)
-        //                 {
-        //                     if (p == v) break;
-        //                     rnk += c;
-        //                 }
-        //
-        //                 Console.WriteLine(rnk);
-        //                 line++;
-        //                 break;
-        //             case '4':
-        //                 var a = int.Parse(r.Substring(2));
-        //                 var nnk = 1;
-        //                 var res = int.MinValue;
-        //                 foreach (var (p, c) in tree)
-        //                 {
-        //                     var t = c;
-        //                     while (t > 0 && nnk < a)
-        //                     {
-        //                         nnk++;
-        //                         t--;
-        //                     }
-        //
-        //                     res = p;
-        //                     if (nnk >= a) break;
-        //                 }
-        //
-        //                 var next = tree.NextNode(tree.FindNode(res));
-        //                 if (next.HasValue)
-        //                 {
-        //                     Console.WriteLine(next.Value.Key);
-        //                 }
-        //                 else
-        //                 {
-        //                     Console.WriteLine(res);
-        //                 }
-        //
-        //                 line++;
-        //                 break;
-        //             case '5':
-        //                 var no = int.Parse(r.Substring(2));
-        //                 var noww = tree.NearestUpper(no, int.MinValue);
-        //                 Console.WriteLine(noww.Key);
-        //                 line++;
-        //                 break;
-        //             case '6':
-        //                 var now = int.Parse(r.Substring(2));
-        //                 var nowww = tree.NearestLower(now, int.MaxValue);
-        //                 Console.WriteLine(nowww.Key);
-        //                 line++;
-        //                 break;
-        //         }
-        //     }
-        //
-        //     sw.Close();
-        //     fs.Close();
-        // }
-
         [Test]
         public void Test2()
         {
-            var s = new SortedDictionary<int, float>();
-
-            const int cnt = 10000000;
+            const int cnt = 1000000;
             var raw = Enumerable.Range(1, cnt).ToArray();
             var datas = raw.ToArray();
             var rand = new Random();
@@ -202,6 +95,12 @@ namespace Test
             Console.WriteLine(Log2(cnt));
 
             tree.CheckHeight();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                tree.Remove(i);
+            }
+            Assert.True(tree.Count == tree.Count());
         }
 
         private static int Log2(int value)
@@ -214,6 +113,135 @@ namespace Test
             }
 
             return result;
+        }
+    }
+
+    //https://www.luogu.com.cn/record/62482724
+    //只是个示例，全部测试在上面网址
+    public partial class TestAvlTree
+    {
+
+        public const string Question =
+            "10\n" +
+            "1 106465\n" +
+            "4 1\n" +
+            "1 317721\n" +
+            "1 460929\n" +
+            "1 644985\n" +
+            "1 84185\n" +
+            "1 89851\n" +
+            "6 81968\n" +
+            "1 492737\n" +
+            "5 493598";
+        public const string Answare =
+            "106465\n" +
+            "84185\n" +
+            "492737\n";
+
+        [Test]
+        public void TestQuestion()
+        {
+            Console.SetIn(new StringReader(Question));
+            StringBuilder sb = new StringBuilder();
+            Console.SetOut(new StringWriter(sb));
+            AvlDictionary<int, int> tree = new AvlDictionary<int, int>();
+            int j = int.Parse(Console.ReadLine());
+            for (int i = 0; i < j; i++)
+            {
+                string r = Console.ReadLine();
+                int value;
+                int key;
+                switch (r[0])
+                {
+                    case '1':
+                        {
+                            int va = int.Parse(r.Substring(2));
+                            AvlTreeNode<KeyValuePair<int, int>> nod = tree.FindNode(va);
+                            if (nod.HasValue)
+                            {
+                                tree.SetValue(nod, nod.Value.Value + 1);
+                            }
+                            else
+                            {
+                                tree.Add(va, 1);
+                            }
+                            break;
+                        }
+                    case '2':
+                        {
+                            AvlTreeNode<KeyValuePair<int, int>> cnt = tree.FindNode(int.Parse(r.Substring(2)));
+                            if (cnt.Value.Value == 1)
+                            {
+                                tree.Remove(cnt);
+                            }
+                            else
+                            {
+                                tree.SetValue(cnt, cnt.Value.Value - 1);
+                            }
+                            break;
+                        }
+                    case '3':
+                        {
+                            int v = int.Parse(r.Substring(2));
+                            int rnk = 1;
+                            foreach (KeyValuePair<int, int> item in tree)
+                            {
+                                item.Deconstruct(out value, out key);
+                                int p = value;
+                                int c = key;
+                                if (p == v)
+                                {
+                                    break;
+                                }
+                                rnk += c;
+                            }
+                            Console.WriteLine(rnk);
+                            break;
+                        }
+                    case '4':
+                        {
+                            int a = int.Parse(r.Substring(2));
+                            int nnk = 0;
+                            int res = int.MinValue;
+                            bool isFind = false;
+                            foreach (KeyValuePair<int, int> item2 in tree)
+                            {
+                                item2.Deconstruct(out key, out value);
+                                int p2 = key;
+                                int c2 = value;
+                                res = p2;
+                                nnk += c2;
+                                if (nnk >= a)
+                                {
+                                    Console.WriteLine(res);
+                                    isFind = true;
+                                    break;
+                                }
+                            }
+                            if (!isFind)
+                            {
+                                Console.WriteLine(res);
+                            }
+                            break;
+                        }
+                    case '5':
+                        {
+                            int no = int.Parse(r.Substring(2));
+                            int val = tree.NearestUpper(no, int.MinValue).Key;
+                            Console.WriteLine(val);
+                            break;
+                        }
+                    case '6':
+                        {
+                            int now = int.Parse(r.Substring(2));
+                            int val = tree.NearestLower(now, int.MaxValue).Key;
+                            Console.WriteLine(val);
+                            break;
+                        }
+                }
+            }
+            var result = sb.ToString().Replace("\r\n", "\n");
+            Assert.True(Answare == result);
         }
     }
 }

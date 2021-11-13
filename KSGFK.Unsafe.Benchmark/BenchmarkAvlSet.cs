@@ -6,55 +6,217 @@ using BenchmarkDotNet.Attributes;
 namespace KSGFK.Unsafe.Benchmark
 {
     /*
-|        Method |               Mean |           Error |            StdDev |             Median |
-|-------------- |-------------------:|----------------:|------------------:|-------------------:|
-|    RBTreeFind |    612,688.2212 ns |     786.6770 ns |       656.9109 ns |    612,724.1211 ns |
-|   AVLTreeFind |    693,850.8440 ns |   3,753.6369 ns |     3,327.5013 ns |    694,199.3164 ns |
+    BenchmarkDotNet=v0.13.1, OS=Windows 10.0.22000
+    Intel Core i7-8750H CPU 2.20GHz (Coffee Lake), 1 CPU, 12 logical and 6 physical cores
+    .NET SDK=6.0.100
+      [Host]     : .NET 6.0.0 (6.0.21.52210), X64 RyuJIT
+      DefaultJob : .NET 6.0.0 (6.0.21.52210), X64 RyuJIT
 
-|    RBTreeFind |  7,052,188.0729 ns |  38,908.7416 ns |    36,395.2610 ns |  7,067,969.5312 ns |
-|   AVLTreeFind | 10,358,667.1875 ns |  60,278.2930 ns |    56,384.3527 ns | 10,341,128.1250 ns |
-
-|  RBTreeRemove |          1.5951 ns |       0.0114 ns |         0.0107 ns |          1.6000 ns |
-| AVLTreeRemove |          0.2435 ns |       0.0093 ns |         0.0087 ns |          0.2433 ns |
-
-|  RBTreeRemove |          3.5850 ns |       0.0345 ns |         0.0323 ns |          3.5908 ns |
-| AVLTreeRemove |          0.2516 ns |       0.0056 ns |         0.0047 ns |          0.2525 ns |
-
-|  RBTreeInsert | 28,879,292.0703 ns | 507,819.0912 ns | 1,328,874.0517 ns | 28,288,934.3750 ns |
-| AVLTreeInsert | 30,122,833.3333 ns | 196,161.6790 ns |   183,489.7562 ns | 30,132,153.1250 ns |
-
-|  RBTreeInsert |  1,532,273.4096 ns |   6,935.8903 ns |     6,148.4861 ns |  1,532,908.2031 ns |
-| AVLTreeInsert |  1,547,391.7318 ns |   5,301.8065 ns |     4,959.3131 ns |  1,546,432.4219 ns |
-     */
-    
-    public class BenchmarkAvlSet
+    | Method            |      Mean |    Error |   StdDev |
+    | ----------------- | --------: | -------: | -------: |
+    | RBTreeInsert10W   |  27.59 ms | 0.531 ms | 0.545 ms |
+    | RBTreeInsert100W  | 665.73 ms | 7.123 ms | 6.663 ms |
+    | AVLTreeInsert10W  |  26.69 ms | 0.271 ms | 0.254 ms |
+    | AVLTreeInsert100W | 737.10 ms | 6.378 ms | 5.966 ms |
+    */
+    public class BenchmarkAvlSetInsert : BenchmarkAvlSet
     {
         [Benchmark]
-        [ArgumentsSource(nameof(GetData))]
-        public void RBTreeInsert(int[] data)
+        public void RBTreeInsert10W()
         {
-            var set = new SortedSet<int>();
-            foreach (var i in data)
-            {
-                set.Add(i);
-            }
+            _10wSet = new SortedSet<int>();
+            RBTreeInsert(_10w, _10wSet);
         }
 
         [Benchmark]
-        [ArgumentsSource(nameof(GetData))]
-        public void AVLTreeInsert(int[] data)
+        public void RBTreeInsert100W()
         {
-            var set = new AvlSet<int>();
-            foreach (var i in data)
-            {
-                set.Add(i);
-            }
+            _100wSet = new SortedSet<int>();
+            RBTreeInsert(_100w, _100wSet);
         }
 
-        public IEnumerable<int[]> GetData()
+        [Benchmark]
+        public void AVLTreeInsert10W()
         {
-            yield return Gen(10000);
-            yield return Gen(100000);
+            _10wAvl = new AvlTree<int>();
+            AVLTreeInsert(_10w, _10wAvl);
+        }
+
+        [Benchmark]
+        public void AVLTreeInsert100W()
+        {
+            _100wAvl = new AvlTree<int>();
+            AVLTreeInsert(_100w, _100wAvl);
+        }
+    }
+
+    /*
+    BenchmarkDotNet=v0.13.1, OS=Windows 10.0.22000
+    Intel Core i7-8750H CPU 2.20GHz (Coffee Lake), 1 CPU, 12 logical and 6 physical cores
+    .NET SDK=6.0.100
+    [Host]     : .NET 6.0.0 (6.0.21.52210), X64 RyuJIT
+    DefaultJob : .NET 6.0.0 (6.0.21.52210), X64 RyuJIT
+
+    | Method           |        Mean |    Error |   StdDev |
+    | ---------------- | ----------: | -------: | -------: |
+    | RBTreeFind10W    |    65.45 ms | 0.262 ms | 0.219 ms |
+    | RBTreeFind100W   |    97.58 ms | 0.549 ms | 0.513 ms |
+    | RBTreeFind1000W  | 1,020.17 ms | 2.446 ms | 2.042 ms |
+    | AVLTreeFind10W   |    53.00 ms | 0.102 ms | 0.090 ms |
+    | AVLTreeFind100W  |    73.34 ms | 0.356 ms | 0.315 ms |
+    | AVLTreeFind1000W |   644.45 ms | 3.578 ms | 3.347 ms |
+    */
+    public class BenchmarkAvlSetFind : BenchmarkAvlSet
+    {
+        private readonly int[] _rnd10W = new int[1_000_000];
+        private readonly int[] _rnd100W = new int[1_000_000];
+        private readonly int[] _rnd1000W = new int[10_000_000];
+
+        public BenchmarkAvlSetFind() : base()
+        {
+            _10wSet = new SortedSet<int>();
+            _100wSet = new SortedSet<int>();
+            _10wAvl = new AvlTree<int>();
+            _100wAvl = new AvlTree<int>();
+
+            var rand = new Random();
+            for (int i = 0; i < _rnd10W.Length; i++)
+            {
+                _rnd10W[i] = rand.Next(0, 100_000_000);
+            }
+            for (int i = 0; i < _rnd100W.Length; i++)
+            {
+                _rnd100W[i] = rand.Next(0, 100_000_000);
+            }
+            for (int i = 0; i < _rnd1000W.Length; i++)
+            {
+                _rnd1000W[i] = rand.Next(0, 100_000_000);
+            }
+
+            RBTreeInsert(_10w, _10wSet);
+            RBTreeInsert(_100w, _100wSet);
+            AVLTreeInsert(_10w, _10wAvl);
+            AVLTreeInsert(_100w, _100wAvl);
+        }
+
+        [Benchmark]
+        public void RBTreeFind10W()
+        {
+            RBTreeFind(_rnd10W, _10wSet);
+        }
+
+        [Benchmark]
+        public void RBTreeFind100W()
+        {
+            RBTreeFind(_rnd100W, _100wSet);
+        }
+
+        [Benchmark]
+        public void RBTreeFind1000W()
+        {
+            RBTreeFind(_rnd1000W, _100wSet);
+        }
+
+        [Benchmark]
+        public void AVLTreeFind10W()
+        {
+            AVLTreeFind(_rnd10W, _10wAvl);
+        }
+
+        [Benchmark]
+        public void AVLTreeFind100W()
+        {
+            AVLTreeFind(_rnd100W, _100wAvl);
+        }
+
+        [Benchmark]
+        public void AVLTreeFind1000W()
+        {
+            AVLTreeFind(_rnd1000W, _100wAvl);
+        }
+    }
+
+    /*
+    BenchmarkDotNet=v0.13.1, OS=Windows 10.0.22000
+    Intel Core i7-8750H CPU 2.20GHz (Coffee Lake), 1 CPU, 12 logical and 6 physical cores
+    .NET SDK=6.0.100
+      [Host]     : .NET 6.0.0 (6.0.21.52210), X64 RyuJIT
+      DefaultJob : .NET 6.0.0 (6.0.21.52210), X64 RyuJIT
+
+    | Method            |      Mean |     Error |    StdDev |
+    | ----------------- | --------: | --------: | --------: |
+    | RBTreeRemove10W   |  53.82 ms |  0.508 ms |  0.424 ms |
+    | RBTreeRemove100W  | 905.52 ms | 12.177 ms | 10.168 ms |
+    | AVLTreeRemove10W  |  33.67 ms |  0.451 ms |  0.400 ms |
+    | AVLTreeRemove100W | 648.58 ms |  6.430 ms |  5.369 ms |
+    */
+    public class BenchmarkAvlSetRemove : BenchmarkAvlSet
+    {
+        private readonly int[] _1000w;
+        private readonly SortedSet<int> _set;
+        private readonly AvlTree<int> _avl;
+        private readonly int[] _rnd10W = new int[1_00_000];
+        private readonly int[] _rnd100W = new int[1_000_000];
+
+        public BenchmarkAvlSetRemove()
+        {
+            _set = new SortedSet<int>();
+            _avl = new AvlTree<int>();
+            _1000w = Gen(10_000_000);
+            var rand = new Random();
+            for (int i = 0; i < _rnd10W.Length; i++)
+            {
+                _rnd10W[i] = rand.Next(0, _rnd10W.Length);
+            }
+            for (int i = 0; i < _rnd100W.Length; i++)
+            {
+                _rnd100W[i] = rand.Next(0, _rnd100W.Length);
+            }
+
+            RBTreeInsert(_1000w, _set);
+            AVLTreeInsert(_1000w, _avl);
+        }
+
+        [Benchmark]
+        public void RBTreeRemove10W()
+        {
+            RBTreeRemove(_rnd10W, _set);
+        }
+
+        [Benchmark]
+        public void RBTreeRemove100W()
+        {
+            RBTreeRemove(_rnd100W, _set);
+        }
+
+        [Benchmark]
+        public void AVLTreeRemove10W()
+        {
+            AVLTreeRemove(_rnd10W, _avl);
+        }
+
+        [Benchmark]
+        public void AVLTreeRemove100W()
+        {
+            AVLTreeRemove(_rnd100W, _avl);
+        }
+    }
+
+    public abstract class BenchmarkAvlSet
+    {
+        protected readonly int[] _10w;
+        protected readonly int[] _100w;
+
+        protected SortedSet<int> _10wSet;
+        protected SortedSet<int> _100wSet;
+
+        protected AvlTree<int> _10wAvl;
+        protected AvlTree<int> _100wAvl;
+
+        public BenchmarkAvlSet()
+        {
+            _10w = Gen(100_000);
+            _100w = Gen(1_000_000);
         }
 
         public int[] Gen(int count)
@@ -73,71 +235,51 @@ namespace KSGFK.Unsafe.Benchmark
             return datas;
         }
 
-        public SortedSet<int> GenRbt(int count) { return new SortedSet<int>(Gen(count)); }
-
-        public AvlSet<int> GenAvl(int count)
+        public void RBTreeInsert(int[] data, SortedSet<int> set)
         {
-            var a = Gen(count);
-            var avl = new AvlSet<int>();
-            foreach (var i in a)
+            foreach (var i in data)
+            {
+                set.Add(i);
+            }
+        }
+
+        public void AVLTreeInsert(int[] data, AvlTree<int> avl)
+        {
+            foreach (var i in data)
             {
                 avl.Add(i);
             }
-
-            return avl;
         }
 
-        public IEnumerable<SortedSet<int>> GetRbt()
+        public void RBTreeFind(int[] order, SortedSet<int> set)
         {
-            yield return GenRbt(10000);
-            yield return GenRbt(100000);
-        }
-
-        public IEnumerable<AvlSet<int>> GetAvl()
-        {
-            yield return GenAvl(10000);
-            yield return GenAvl(100000);
-        }
-
-        [Benchmark]
-        [ArgumentsSource(nameof(GetRbt))]
-        public void RBTreeFind(SortedSet<int> set)
-        {
-            var count = set.Count;
-            for (var i = 1; i <= count; i++)
+            foreach (var i in order)
             {
                 _ = set.Contains(i);
             }
         }
 
-        [Benchmark]
-        [ArgumentsSource(nameof(GetAvl))]
-        public void AVLTreeFind(AvlSet<int> set)
+        public void AVLTreeFind(int[] order, AvlTree<int> set)
         {
-            var count = set.Count;
-            for (var i = 1; i <= count; i++)
+            foreach (var i in order)
             {
                 _ = set.Contains(i);
             }
         }
 
-        [Benchmark]
-        [ArgumentsSource(nameof(GetRbt))]
-        public void RBTreeRemove(SortedSet<int> set)
+        public void RBTreeRemove(int[] order, SortedSet<int> set)
         {
-            while (set.Count > 0)
+            foreach (var i in order)
             {
-                set.Remove(set.Min);
+                set.Remove(i);
             }
         }
 
-        [Benchmark]
-        [ArgumentsSource(nameof(GetAvl))]
-        public void AVLTreeRemove(AvlSet<int> set)
+        public void AVLTreeRemove(int[] order, AvlTree<int> set)
         {
-            while (set.Count > 0)
+            foreach (var i in order)
             {
-                set.Remove(set.Min);
+                set.Remove(i);
             }
         }
     }

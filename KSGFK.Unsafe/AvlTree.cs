@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace KSGFK.Unsafe
 {
@@ -330,6 +331,7 @@ namespace KSGFK.Unsafe
 
         private static int GetRightNodeHeight(Node node) { return node.Right?.Height ?? 0; }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Update(Node node)
         {
             var leftHeight = GetLeftNodeHeight(node);
@@ -574,5 +576,152 @@ namespace KSGFK.Unsafe
         }
 
         public override string ToString() { return HasValue ? Value.ToString() : "null"; }
+    }
+
+    [Obsolete("only for test")]
+    public class AvlDictionary<TK, TV>
+    {
+        private class PairComparer : Comparer<KeyValuePair<TK, TV>>
+        {
+            private readonly IComparer<TK> _keyComparer;
+
+            public PairComparer(IComparer<TK> keyComparer)
+            {
+                _keyComparer = (keyComparer ?? Comparer<TK>.Default);
+            }
+
+            public override int Compare(KeyValuePair<TK, TV> x, KeyValuePair<TK, TV> y)
+            {
+                return _keyComparer.Compare(x.Key, y.Key);
+            }
+        }
+
+        public struct Enumerator : IEnumerator<KeyValuePair<TK, TV>>, IEnumerator, IDisposable
+        {
+            private AvlTree<KeyValuePair<TK, TV>>.Enumerator _enumerator;
+
+            public KeyValuePair<TK, TV> Current => _enumerator.Current;
+
+            object IEnumerator.Current => Current;
+
+            internal Enumerator(AvlDictionary<TK, TV> avl)
+            {
+                _enumerator = avl._tree.GetEnumerator();
+            }
+
+            public bool MoveNext()
+            {
+                return _enumerator.MoveNext();
+            }
+
+            public void Reset()
+            {
+                _enumerator.Reset();
+            }
+
+            public void Dispose()
+            {
+                _enumerator.Dispose();
+            }
+        }
+
+        public readonly AvlTree<KeyValuePair<TK, TV>> _tree;
+
+        public TV this[TK key]
+        {
+            get
+            {
+                AvlTreeNode<KeyValuePair<TK, TV>> result = _tree.FindNode(new KeyValuePair<TK, TV>(key, default(TV)));
+                if (!result.HasValue)
+                {
+                    throw new ArgumentException();
+                }
+                return result.Value.Value;
+            }
+            set
+            {
+                AvlTreeNode<KeyValuePair<TK, TV>> result = _tree.FindNode(new KeyValuePair<TK, TV>(key, default(TV)));
+                if (!result.HasValue)
+                {
+                    _tree.Add(new KeyValuePair<TK, TV>(key, value));
+                }
+                else
+                {
+                    result.Node.Item = new KeyValuePair<TK, TV>(key, value);
+                }
+            }
+        }
+
+        public AvlDictionary() : this(null)
+        {
+        }
+
+        public AvlDictionary(IComparer<TK> comparer)
+        {
+            _tree = new AvlTree<KeyValuePair<TK, TV>>(new PairComparer(comparer));
+        }
+
+        public void Add(TK key, TV value)
+        {
+            if (!_tree.Add(new KeyValuePair<TK, TV>(key, value)))
+            {
+                throw new ArgumentException();
+            }
+        }
+
+        public bool Remove(TK key)
+        {
+            return _tree.Remove(new KeyValuePair<TK, TV>(key, default(TV)));
+        }
+
+        public void Remove(AvlTreeNode<KeyValuePair<TK, TV>> node)
+        {
+            _tree.Remove(node);
+        }
+
+        public void Clear()
+        {
+            _tree.Clear();
+        }
+
+        public bool ContainsKey(TK key)
+        {
+            return _tree.Contains(new KeyValuePair<TK, TV>(key, default(TV)));
+        }
+
+        public Enumerator GetEnumerator()
+        {
+            return new Enumerator(this);
+        }
+
+        public AvlTreeNode<KeyValuePair<TK, TV>> FindNode(TK key)
+        {
+            return _tree.FindNode(new KeyValuePair<TK, TV>(key, default(TV)));
+        }
+
+        public void SetValue(AvlTreeNode<KeyValuePair<TK, TV>> node, TV newValue)
+        {
+            node.Node.Item = new KeyValuePair<TK, TV>(node.Value.Key, newValue);
+        }
+
+        public AvlTreeNode<KeyValuePair<TK, TV>> PreviousNode(AvlTreeNode<KeyValuePair<TK, TV>> treeNode)
+        {
+            return _tree.PreviousNode(treeNode);
+        }
+
+        public AvlTreeNode<KeyValuePair<TK, TV>> NextNode(AvlTreeNode<KeyValuePair<TK, TV>> treeNode)
+        {
+            return _tree.NextNode(treeNode);
+        }
+
+        public KeyValuePair<TK, TV> NearestUpper(TK key, TK min)
+        {
+            return _tree.NearestPrevious(new KeyValuePair<TK, TV>(key, default(TV)), new KeyValuePair<TK, TV>(min, default(TV)));
+        }
+
+        public KeyValuePair<TK, TV> NearestLower(TK key, TK max)
+        {
+            return _tree.NearestNext(new KeyValuePair<TK, TV>(key, default(TV)), new KeyValuePair<TK, TV>(max, default(TV)));
+        }
     }
 }

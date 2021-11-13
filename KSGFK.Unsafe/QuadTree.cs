@@ -20,13 +20,13 @@ namespace KSGFK.Unsafe
     {
         private class Node
         {
-            public List<(Aabb2D, T)> Data = new List<(Aabb2D, T)>(16);
+            public List<(BoundingBox2F, T)> Data = new List<(BoundingBox2F, T)>(16);
             public int Four;
             public int Three;
             public int Two;
             public int One;
             public int Depth;
-            public Aabb2D Bound;
+            public BoundingBox2F Bound;
             public bool HaveSubNode;
         }
 
@@ -35,7 +35,7 @@ namespace KSGFK.Unsafe
         private readonly int _maxItem;
         private readonly int _maxDepth;
 
-        public QuadTree(Aabb2D bound, int maxItem = 16, int maxDepth = 4)
+        public QuadTree(BoundingBox2F bound, int maxItem = 16, int maxDepth = 4)
         {
             _nodes = new List<Node>();
             _usable = new Queue<int>();
@@ -44,7 +44,7 @@ namespace KSGFK.Unsafe
             _nodes.Add(new Node {Bound = bound, Depth = 1});
         }
 
-        private int GetEmptyNode(Aabb2D rect, int depth)
+        private int GetEmptyNode(BoundingBox2F rect, int depth)
         {
             int idx;
             if (_usable.Count == 0)
@@ -72,14 +72,14 @@ namespace KSGFK.Unsafe
             var y = bound.Down;
             var z = bound.Right;
             var w = bound.Up;
-            _nodes[idx].Four = GetEmptyNode(new Aabb2D(x + wm, y, z, w - hm), nextDepth);
-            _nodes[idx].Three = GetEmptyNode(new Aabb2D(x, y, z - wm, w - hm), nextDepth);
-            _nodes[idx].Two = GetEmptyNode(new Aabb2D(x, y + hm, z - wm, w), nextDepth);
-            _nodes[idx].One = GetEmptyNode(new Aabb2D(x + wm, y + hm, z, w), nextDepth);
+            _nodes[idx].Four = GetEmptyNode(new BoundingBox2F(x + wm, y, z, w - hm), nextDepth);
+            _nodes[idx].Three = GetEmptyNode(new BoundingBox2F(x, y, z - wm, w - hm), nextDepth);
+            _nodes[idx].Two = GetEmptyNode(new BoundingBox2F(x, y + hm, z - wm, w), nextDepth);
+            _nodes[idx].One = GetEmptyNode(new BoundingBox2F(x + wm, y + hm, z, w), nextDepth);
             _nodes[idx].HaveSubNode = true;
         }
 
-        private (bool, bool, bool, bool) GetInsertNode(Aabb2D pRect, int idx)
+        private (bool, bool, bool, bool) GetInsertNode(BoundingBox2F pRect, int idx)
         {
             var bound = _nodes[idx].Bound;
             var wm = bound.Width / 2;
@@ -96,9 +96,9 @@ namespace KSGFK.Unsafe
                 startIsNorth && endIsEast);
         }
 
-        public void Add(Aabb2D rect, T item) { Add(rect, item, 0); }
+        public void Add(BoundingBox2F rect, T item) { Add(rect, item, 0); }
 
-        private void Add(Aabb2D rect, T item, int node)
+        private void Add(BoundingBox2F rect, T item, int node)
         {
             if (_nodes[node].HaveSubNode)
             {
@@ -131,14 +131,14 @@ namespace KSGFK.Unsafe
             }
         }
 
-        public T[] Retrieve(Aabb2D rect)
+        public T[] Retrieve(BoundingBox2F rect)
         {
             var set = new HashSet<T>();
             Retrieve(rect, 0, set);
             return set.ToArray();
         }
 
-        public void Retrieve(Aabb2D rect, List<T> result)
+        public void Retrieve(BoundingBox2F rect, List<T> result)
         {
             var set = new HashSet<T>();
             Retrieve(rect, 0, set);
@@ -146,9 +146,9 @@ namespace KSGFK.Unsafe
             result.AddRange(set);
         }
 
-        public void Retrieve(Aabb2D rect, HashSet<T> result) { Retrieve(rect, 0, result); }
+        public void Retrieve(BoundingBox2F rect, HashSet<T> result) { Retrieve(rect, 0, result); }
 
-        private void Retrieve(Aabb2D rect, int node, HashSet<T> set)
+        private void Retrieve(BoundingBox2F rect, int node, HashSet<T> set)
         {
             foreach (var (_, item) in _nodes[node].Data)
             {

@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace KSGFK.Unsafe
 {
-    public readonly struct Aabb2D : IEquatable<Aabb2D>
+    public readonly struct BoundingBox2F : IEquatable<BoundingBox2F>
     {
         public readonly float Left;
         public readonly float Down;
@@ -13,7 +13,7 @@ namespace KSGFK.Unsafe
         public float Width => Right - Left;
         public float Height => Up - Down;
 
-        public Aabb2D(float left, float down, float right, float up)
+        public BoundingBox2F(float left, float down, float right, float up)
         {
             Left = left;
             Down = down;
@@ -21,7 +21,7 @@ namespace KSGFK.Unsafe
             Up = up;
         }
 
-        public bool IsCross(Aabb2D o)
+        public bool IsCross(BoundingBox2F o)
         {
             var left = MathF.Max(Left, o.Left);
             var down = MathF.Max(Down, o.Down);
@@ -30,11 +30,11 @@ namespace KSGFK.Unsafe
             return left < right && down < up;
         }
 
-        public bool Contains(Aabb2D o) { return o.Left >= Left && o.Right <= Right && o.Up <= Up && o.Down >= Down; }
+        public bool Contains(BoundingBox2F o) { return o.Left >= Left && o.Right <= Right && o.Up <= Up && o.Down >= Down; }
 
         public override string ToString() { return $"[{new Vector2(Left, Down)},{new Vector2(Right, Up)}]"; }
 
-        public bool Equals(Aabb2D other)
+        public bool Equals(BoundingBox2F other)
         {
             return MathF.Abs(Left - other.Left) < 0.000001f &&
                    MathF.Abs(Down - other.Down) < 0.000001f &&
@@ -42,12 +42,12 @@ namespace KSGFK.Unsafe
                    MathF.Abs(Up - other.Up) < 0.000001f;
         }
 
-        public override bool Equals(object obj) { return obj is Aabb2D other && Equals(other); }
+        public override bool Equals(object obj) { return obj is BoundingBox2F other && Equals(other); }
 
         public override int GetHashCode() { return HashCode.Combine(Left, Down, Right, Up); }
 
-        public static bool operator ==(Aabb2D l, Aabb2D r) { return l.Equals(r); }
+        public static bool operator ==(BoundingBox2F l, BoundingBox2F r) { return l.Equals(r); }
 
-        public static bool operator !=(Aabb2D l, Aabb2D r) { return !l.Equals(r); }
+        public static bool operator !=(BoundingBox2F l, BoundingBox2F r) { return !l.Equals(r); }
     }
 }

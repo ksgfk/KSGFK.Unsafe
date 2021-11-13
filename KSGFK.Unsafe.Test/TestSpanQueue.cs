@@ -1,17 +1,16 @@
+﻿using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using KSGFK.Unsafe;
-using NUnit.Framework;
 
-namespace Test
+namespace KSGFK.Unsafe.Test
 {
-    public class TestNativeQueue
+    public class TestSpanQueue
     {
         [Test]
         public unsafe void Test()
         {
             const int cnt = 1000;
-            using var queue = new NativeQueue<int>(0);
+            var queue = new SpanQueue<int>(stackalloc int[cnt]);
             var managed = new Queue<int>(cnt);
 
             var arr = new int[cnt];
@@ -51,14 +50,7 @@ namespace Test
             }
 
             queue.Clear();
-            queue.TrimExcess();
-            
-            Assert.True(!queue.IsDisposed);
-
-            queue.Dispose();
-
-            Assert.True(queue.Ptr == null);
-            Assert.True(queue.IsDisposed);
+            Assert.True(queue.Count == 0);
         }
     }
 }

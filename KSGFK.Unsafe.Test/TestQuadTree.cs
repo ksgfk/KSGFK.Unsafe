@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using KSGFK.Unsafe;
 using NUnit.Framework;
 
-namespace Test
+namespace KSGFK.Unsafe.Test
 {
     public class TestQuadTree
     {
@@ -13,14 +12,14 @@ namespace Test
         {
             var rand = new Random();
             const int cnt = 500;
-            var data = new Aabb2D[cnt];
+            var data = new BoundingBox2F[cnt];
             for (var i = 0; i < cnt; i++)
             {
                 var x = (float) rand.NextDouble() * 20 - 10;
                 var y = (float) rand.NextDouble() * 20 - 10;
                 var w = (float) rand.NextDouble() * 4 + 1;
                 var h = (float) rand.NextDouble() * 4 + 1;
-                data[i] = new Aabb2D(x, y, x + w, y + h);
+                data[i] = new BoundingBox2F(x, y, x + w, y + h);
             }
 
             Console.WriteLine($"test:{data[0]}");
@@ -36,7 +35,7 @@ namespace Test
             }
 
             Console.WriteLine("-----QuadTree-----");
-            var q = new QuadTree<int>(new Aabb2D(-10, -10, 10, 10));
+            var q = new QuadTree<int>(new BoundingBox2F(-10, -10, 10, 10));
             for (var i = 1; i < cnt; i++)
             {
                 q.Add(data[i], i);

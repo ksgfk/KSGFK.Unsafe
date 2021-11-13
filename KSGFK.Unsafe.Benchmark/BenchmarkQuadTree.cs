@@ -20,7 +20,7 @@ namespace KSGFK.Unsafe.Benchmark
 
         [Benchmark]
         [ArgumentsSource(nameof(GetTestData))]
-        public void ForEach(Aabb2D[] aabbs)
+        public void ForEach(BoundingBox2F[] aabbs)
         {
             _feRes.Clear();
             foreach (var aabb in aabbs)
@@ -37,7 +37,7 @@ namespace KSGFK.Unsafe.Benchmark
 
         [Benchmark]
         [ArgumentsSource(nameof(GetTestData))]
-        public void QuadTree(Aabb2D[] aabbs)
+        public void QuadTree(BoundingBox2F[] aabbs)
         {
             int depth;
             if (aabbs.Length <= 128)
@@ -53,7 +53,7 @@ namespace KSGFK.Unsafe.Benchmark
                 depth = 4;
             }
 
-            var q = new QuadTree<int>(new Aabb2D(-10, -10, 10, 10), maxDepth: depth);
+            var q = new QuadTree<int>(new BoundingBox2F(-10, -10, 10, 10), maxDepth: depth);
             for (var i = 1; i < aabbs.Length; i++)
             {
                 q.Add(aabbs[i], i);
@@ -74,23 +74,23 @@ namespace KSGFK.Unsafe.Benchmark
             }
         }
 
-        public IEnumerable<Aabb2D[]> GetTestData()
+        public IEnumerable<BoundingBox2F[]> GetTestData()
         {
             yield return GenArr(1000);
             yield return GenArr(10000);
         }
 
-        public Aabb2D[] GenArr(int cnt)
+        public BoundingBox2F[] GenArr(int cnt)
         {
             var rand = new Random();
-            var data = new Aabb2D[cnt];
+            var data = new BoundingBox2F[cnt];
             for (var i = 0; i < cnt; i++)
             {
                 var x = (float) rand.NextDouble() * 20 - 10;
                 var y = (float) rand.NextDouble() * 20 - 10;
                 var w = (float) rand.NextDouble() * 3 + 1;
                 var h = (float) rand.NextDouble() * 3 + 1;
-                data[i] = new Aabb2D(x, y, x + w, y + h);
+                data[i] = new BoundingBox2F(x, y, x + w, y + h);
             }
 
             return data;
